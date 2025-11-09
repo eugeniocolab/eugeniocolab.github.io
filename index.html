@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -47,13 +47,6 @@
             <img id="dancing-banana" src="https://www.cameronsworld.net/img/content/2/19.gif" alt="Dancing Banana">
             <img src="https://www.coin-operated.com/wp-content/uploads/2010/05/smiling.gif" alt="Smiling">
         </div>
-
-        <div class="my-4">
-            <label for="file-upload" class="cursor-pointer bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Load Leaderboard File
-            </label>
-            <input id="file-upload" type="file" class="hidden">
-        </div>
         
         <img src="https://stryvemarketing.com/wp-content/uploads/2016/04/flamingline.gif" alt="Flaming Line">
 
@@ -67,7 +60,7 @@
                 <div id="giornata-table"></div>
             </div>
         </div>
-        <p id="upload-message" class="text-xl my-4">Upload the 'classifica_storico.xlsx' file to see the leaderboards</p>
+        <p id="upload-message" class="text-xl my-4">Caricamento classifica in corso...</p>
 
 
 
@@ -118,48 +111,84 @@
         // Visitor Counter
         document.getElementById('visitor-counter').textContent = Math.floor(Math.random() * 10000);
 
-        // Excel File Handling
-        document.getElementById('file-upload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                
-                // Process "Generale" sheet
-                const generaleSheet = workbook.Sheets['Generale'];
-                const generaleData = XLSX.utils.sheet_to_json(generaleSheet);
-                createTable(generaleData, 'generale-table');
-                document.getElementById('generale-container').classList.remove('hidden');
+        // --- INIZIO CODICE MODIFICATO ---
 
-                // Process "Giornata" sheet
-                const giornataSheet = workbook.Sheets['Giornata'];
-                const giornataData = XLSX.utils.sheet_to_json(giornataSheet);
-                createTable(giornataData, 'giornata-table');
-                document.getElementById('giornata-container').classList.remove('hidden');
+        // Funzione per caricare e processare il file Excel automaticamente
+        async function loadLeaderboard() {
+            const url = 'classifica_storico.xlsx'; // Nome del file che caricherai su GitHub
+            const uploadMessage = document.getElementById('upload-message');
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`File non trovato o errore di rete (status: ${response.status})`);
+                }
+                const data = await response.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
 
-                document.getElementById('upload-message').classList.add('hidden');
-            };
-            reader.readAsArrayBuffer(file);
-        });
+                // Colonne specifiche da mostrare
+                const columnsToShow = ['Squadra', 'Presidente', 'Punti'];
 
-        function createTable(data, tableId) {
+                // Processa il foglio "Generale"
+                if (workbook.Sheets['Generale']) {
+                    const generaleSheet = workbook.Sheets['Generale'];
+                    const generaleData = XLSX.utils.sheet_to_json(generaleSheet);
+                    createTable(generaleData, 'generale-table', columnsToShow);
+                    document.getElementById('generale-container').classList.remove('hidden');
+                }
+
+                // Processa il foglio "Giornata"
+                if (workbook.Sheets['Giornata']) {
+                    const giornataSheet = workbook.Sheets['Giornata'];
+                    const giornataData = XLSX.utils.sheet_to_json(giornataSheet);
+                    createTable(giornataData, 'giornata-table', columnsToShow);
+                    document.getElementById('giornata-container').classList.remove('hidden');
+                }
+
+                // Nasconde il messaggio di caricamento
+                uploadMessage.classList.add('hidden');
+
+            } catch (error) {
+                console.error("Errore nel caricamento della classifica:", error);
+                uploadMessage.textContent = "Errore: Impossibile caricare il file 'classifica_storico.xlsx'. Assicurati che sia presente nel repository.";
+                uploadMessage.style.color = '#ff0000'; // Rosso per l'errore
+            }
+        }
+
+        // Funzione modificata per creare la tabella con solo le colonne specificate
+        function createTable(data, tableId, columnsToShow) {
+            if (!data || data.length === 0) {
+                document.getElementById(tableId).innerHTML = '<p class="text-red-500">Nessun dato da mostrare in questo foglio.</p>';
+                return;
+            }
+
             let table = '<table class="w-full text-left table-auto">';
+            // Crea l'intestazione della tabella
             table += '<thead><tr class="bg-gray-700">';
-            Object.keys(data[0]).forEach(key => {
+            columnsToShow.forEach(key => {
                 table += `<th class="px-4 py-2">${key}</th>`;
             });
             table += '</tr></thead><tbody>';
+
+            // Crea le righe della tabella
             data.forEach(row => {
                 table += '<tr class="bg-gray-800">';
-                Object.values(row).forEach(value => {
+                columnsToShow.forEach(key => {
+                    const value = row[key] !== undefined ? row[key] : ''; // Mostra una cella vuota se il dato manca
                     table += `<td class="border px-4 py-2">${value}</td>`;
                 });
                 table += '</tr>';
             });
+
             table += '</tbody></table>';
             document.getElementById(tableId).innerHTML = table;
         }
+
+        // Avvia il caricamento del file Excel quando la pagina è pronta
+        document.addEventListener('DOMContentLoaded', loadLeaderboard);
+
+        // --- FINE CODICE MODIFICATO ---
+
 
         // Guess the Number Game
         const guessInput = document.getElementById('guess-input');
