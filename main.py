@@ -97,8 +97,8 @@ def parse_rankings(html: str, url: str) -> List[Dict[str, Any]]:
             pos = None
 
         results.append({
-            "squadra": team_name,
-            "punteggio": points,
+            "Squadra": team_name,
+            "Punti": points,
             "posizione": pos,
             "url": url,
         })
@@ -108,14 +108,14 @@ def parse_rankings(html: str, url: str) -> List[Dict[str, Any]]:
 
 def collect_current_scores(all_rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """
-    Deduplica per squadra normalizzata prendendo il punteggio massimo.
-    Ritorna: {squadra_norm: {"squadra": nome_originale, "punteggio": float}}
+    Deduplica per Squadra normalizzata prendendo il punteggio massimo.
+    Ritorna: {squadra_norm: {"squadra": nome_originale, "Punti": float}}
     """
     scores: Dict[str, Dict[str, Any]] = {}
     for row in all_rows:
-        norm = normalize_name(row["squadra"])
-        if norm not in scores or row["punteggio"] > scores[norm]["punteggio"]:
-            scores[norm] = {"squadra": row["squadra"], "punteggio": float(row["punteggio"])}
+        norm = normalize_name(row["Squadra"])
+        if norm not in scores or row["Punti"] > scores[norm]["Punti"]:
+            scores[norm] = {"Squadra": row["Squadra"], "Punti": float(row["Punti"])}
     return scores
 
 
@@ -130,7 +130,7 @@ def apply_target_filter(scores: Dict[str, Dict[str, Any]], targets: List[str]) -
 
 def load_storico(path: Path) -> pd.DataFrame:
     if not path.exists():
-        return pd.DataFrame(columns=["giornata", "data_download", "squadra", "squadra_norm", "punteggio_totale"])
+        return pd.DataFrame(columns=["giornata", "data_download", "Squadra", "squadra_norm", "punteggio_totale"])
     try:
         df = pd.read_excel(path, sheet_name="Storico")
         if "data_download" in df.columns:
@@ -138,7 +138,7 @@ def load_storico(path: Path) -> pd.DataFrame:
         return df
     except Exception:
         # Se il file esiste ma non ha il foglio "Storico", riparti pulito
-        return pd.DataFrame(columns=["giornata", "data_download", "squadra", "squadra_norm", "punteggio_totale"])
+        return pd.DataFrame(columns=["giornata", "data_download", "Squadra", "squadra_norm", "Punti"])
 
 
 def compute_prev_giornata_date(df_storico: pd.DataFrame, giornata: int, fallback_dt: datetime) -> datetime:
@@ -176,9 +176,9 @@ def update_storico(
             rows.append({
                 "giornata": 1,
                 "data_download": run_dt,
-                "squadra": obj["squadra"],
+                "Squadra": obj["Squadra"],
                 "squadra_norm": norm,
-                "punteggio_totale": obj["punteggio"],
+                "punteggio_totale": obj["Punti"],
             })
         df_new = pd.DataFrame(rows)
         return df_new, 1, {"added_changed": len(rows), "added_new_prev": 0, "skipped_unchanged": 0, "no_change": 0}
@@ -195,7 +195,7 @@ def update_storico(
 
     changed, unchanged, new_teams = [], [], []
     for norm, obj in current_scores.items():
-        cur = float(obj["punteggio"])
+        cur = float(obj["Punti"])
         if norm not in df_last.index:
             new_teams.append(norm)
         else:
@@ -217,9 +217,9 @@ def update_storico(
             rows_to_add.append({
                 "giornata": giornata_new,
                 "data_download": run_dt,
-                "squadra": obj["squadra"],
+                "Squadra": obj["Squadra"],
                 "squadra_norm": norm,
-                "punteggio_totale": obj["punteggio"],
+                "punteggio_totale": obj["Punti"],
             })
 
         # backfill delle squadre nuove alla giornata precedente
@@ -229,9 +229,9 @@ def update_storico(
             rows_to_add.append({
                 "giornata": last_giornata,
                 "data_download": prev_dt,
-                "squadra": obj["squadra"],
+                "Squadra": obj["Squadra"],
                 "squadra_norm": norm,
-                "punteggio_totale": obj["punteggio"],
+                "punteggio_totale": obj["Punti"],
             })
 
         stats["added_changed"] = len(changed)
@@ -259,9 +259,9 @@ def update_storico(
             rows_to_add.append({
                 "giornata": last_giornata,
                 "data_download": prev_dt,
-                "squadra": obj["squadra"],
+                "Squadra": obj["Squadra"],
                 "squadra_norm": norm,
-                "punteggio_totale": obj["punteggio"],
+                "punteggio_totale": obj["Punti"],
             })
         stats["added_changed"] = 0
         stats["added_new_prev"] = len(new_teams)
@@ -286,18 +286,18 @@ def update_storico(
 
 def build_punteggi_giornata(df_storico: pd.DataFrame) -> pd.DataFrame:
     if df_storico.empty:
-        return pd.DataFrame(columns=["giornata", "data_download", "squadra", "punteggio_giornata"])
+        return pd.DataFrame(columns=["giornata", "data_download", "Squadra", "punteggio_giornata"])
     df = df_storico.sort_values(["squadra_norm", "giornata"]).copy()
     df["prev_tot"] = df.groupby("squadra_norm")["punteggio_totale"].shift(1)
     df["punteggio_giornata"] = df["punteggio_totale"] - df["prev_tot"]
-    out = df[df["prev_tot"].notna()][["giornata", "data_download", "squadra", "punteggio_giornata"]].copy()
+    out = df[df["prev_tot"].notna()][["giornata", "data_download", "Squadra", "punteggio_giornata"]].copy()
     out = out.sort_values(["giornata", "punteggio_giornata"], ascending=[True, False]).reset_index(drop=True)
     return out
 
 
 def build_ultima_classifica(df_storico: pd.DataFrame) -> pd.DataFrame:
     if df_storico.empty:
-        return pd.DataFrame(columns=["posizione", "squadra", "punteggio_totale", "giornata", "data_download"])
+        return pd.DataFrame(columns=["posizione", "Squadra", "punteggio_totale", "giornata", "data_download"])
     # ultimo record per squadra (potrebbe non essere la stessa giornata per tutti)
     last_per_team = (
         df_storico.sort_values(["squadra_norm", "giornata"])
@@ -305,7 +305,7 @@ def build_ultima_classifica(df_storico: pd.DataFrame) -> pd.DataFrame:
         .tail(1)
         .copy()
     )
-    last_per_team = last_per_team[["squadra", "punteggio_totale", "giornata", "data_download"]]
+    last_per_team = last_per_team[["Squadra", "punteggio_totale", "giornata", "data_download"]]
     last_per_team = last_per_team.sort_values("punteggio_totale", ascending=False).reset_index(drop=True)
     last_per_team.insert(0, "posizione", range(1, len(last_per_team) + 1))
     return last_per_team
@@ -377,4 +377,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
