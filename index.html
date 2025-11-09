@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantavvale Advanced Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            background-color: #000;
+            color: #00ff00;
+            font-family: "Courier New", Courier, monospace;
+            background-image: url('data:image/gif;base64,R0lGODlhCgAKAJECAAAAAP///wAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQJCgACACwAAAAACgAKAAACEpSPqcvtD6OctNqgSg4JBAA7');
+        }
+        .container {
+            width: 800px;
+            margin: 2rem auto;
+            border: 4px outset #0000ff;
+            padding: 1rem;
+            background-color: #111;
+        }
+        table {
+            border: 2px inset #ff00ff;
+        }
+        th, td {
+            border: 1px solid #00ff00;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #333;
+            color: #ffff00;
+        }
+        #game-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 4px outset #ff00ff;
+            background: #000;
+            padding: 2rem;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="bg-black text-lime-400 font-mono">
+
+    <div class="container mx-auto p-4 border-4 border-blue-600" style="width: 800px; border-style: outset;">
+
+        <marquee behavior="scroll" direction="left" class="text-2xl font-bold text-yellow-300">
+            <h1 id="main-title">*** Welcome to Fantavvale Advanced Analytics ***</h1>
+        </marquee>
+
+        <div class="flex justify-between items-center my-4">
+            <img src="https://www.cameronsworld.net/img/content/8/1.gif" alt="Spinning Globe">
+            <div class="text-center">
+                <p class="text-lg text-cyan-400">Upload your league's Excel file to see the standings!</p>
+                <input type="file" id="file-input" class="mt-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100">
+            </div>
+            <img src="https://www.cameronsworld.net/img/content/1/10.gif" alt="Under Construction">
+        </div>
+
+        <div id="tables-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div>
+                <h2 class="text-xl font-bold text-pink-500 mb-2">Overall Standings (Classifica Generale)</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full" id="generale-table">
+                        <thead>
+                            <tr>
+                                <th>Squadra</th>
+                                <th>Presidente</th>
+                                <th>Punti</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="3">Upload an Excel file to see the data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-pink-500 mb-2">Matchday Standings (Classifica di Giornata)</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full" id="giornata-table">
+                        <thead>
+                            <tr>
+                                <th>Squadra</th>
+                                <th>Presidente</th>
+                                <th>Punti</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                             <tr><td colspan="3">Upload an Excel file to see the data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 flex justify-between items-center border-t-2 border-dashed border-yellow-300 pt-4">
+            <div class="flex items-center">
+                <p>Visitors:</p>
+                <span id="visitor-counter" class="ml-2 text-lg font-bold text-white">0</span>
+            </div>
+            <div>
+                <span class="text-xs">E-Mail the Commish!</span>
+                <img src="https://www.cameronsworld.net/img/content/1/13.gif" alt="Email" class="inline-block ml-2">
+            </div>
+            <div id="game-trigger" class="w-2 h-2 bg-white cursor-pointer" title="???"></div>
+        </div>
+
+    </div>
+
+    <div id="game-container" class="hidden p-6 bg-black border-4 border-pink-500" style="border-style: outset;">
+        <h3 class="text-lg font-bold text-yellow-300 mb-4">GUESS THE NUMBER!</h3>
+        <p class="text-sm mb-2">I'm thinking of a number between 1 and 100...</p>
+        <input type="number" id="guess-input" class="bg-gray-800 border border-lime-400 text-white px-2 py-1 w-24">
+        <button id="guess-button" class="ml-2 bg-blue-600 text-white font-bold py-1 px-3 border-2 border-blue-400" style="border-style: outset;">Guess</button>
+        <p id="game-message" class="mt-4 h-6"></p>
+        <button id="close-game" class="absolute top-1 right-2 text-red-500 font-bold">X</button>
+    </div>
+
+    <script>
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Fake Visitor Counter ---
+            const visitorCounter = document.getElementById('visitor-counter');
+            let count = Math.floor(Math.random() * 1000) + 500; // Start with a random number
+            const incrementCounter = () => {
+                count++;
+                visitorCounter.textContent = count;
+            };
+            setInterval(incrementCounter, Math.random() * 3000 + 1000); // Increment at random intervals
+
+            // --- File Upload and Excel Parsing ---
+            const fileInput = document.getElementById('file-input');
+            fileInput.addEventListener('change', handleFile);
+
+            function handleFile(e) {
+                const file = e.target.files[0];
+                if (!file) {
+                    alert("No file selected!");
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+
+                        // Process "Generale" sheet
+                        const generaleSheet = workbook.Sheets['Generale'];
+                        if (generaleSheet) {
+                            const generaleData = XLSX.utils.sheet_to_json(generaleSheet);
+                            generaleData.sort((a, b) => b.Punti - a.Punti); // Sort by points
+                            populateTable('generale-table', generaleData);
+                        } else {
+                             alert("Sheet 'Generale' not found in the Excel file!");
+                        }
+
+                        // Process "Giornata" sheet
+                        const giornataSheet = workbook.Sheets['Giornata'];
+                        if (giornataSheet) {
+                            const giornataData = XLSX.utils.sheet_to_json(giornataSheet);
+                            giornataData.sort((a, b) => b.Punti - a.Punti); // Sort by points
+                            populateTable('giornata-table', giornataData);
+                        } else {
+                             alert("Sheet 'Giornata' not found in the Excel file!");
+                        }
+                    } catch (error) {
+                        console.error("Error processing Excel file:", error);
+                        alert("Error processing file. Make sure it is a valid .xlsx file and the sheet names are correct.");
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function populateTable(tableId, data) {
+                const tableBody = document.querySelector(`#${tableId} tbody`);
+                tableBody.innerHTML = ''; // Clear existing data
+                if (data.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="3">No data found in this sheet.</td></tr>`;
+                    return;
+                }
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${row.Squadra || ''}</td><td>${row.Presidente || ''}</td><td>${row.Punti || 0}</td>`;
+                    tableBody.appendChild(tr);
+                });
+            }
+
+            // --- Easter Egg: Title Click ---
+            const mainTitle = document.getElementById('main-title');
+            let clickCount = 0;
+            mainTitle.addEventListener('click', () => {
+                clickCount++;
+                if (clickCount === 5) {
+                    alert("ACCESS GRANTED: Mainframe unlocked. Welcome, President.");
+                    clickCount = 0; // Reset counter
+                }
+            });
+
+            // --- Minigame: Guess the Number ---
+            const gameTrigger = document.getElementById('game-trigger');
+            const gameContainer = document.getElementById('game-container');
+            const closeGameBtn = document.getElementById('close-game');
+            const guessButton = document.getElementById('guess-button');
+            const guessInput = document.getElementById('guess-input');
+            const gameMessage = document.getElementById('game-message');
+
+            let secretNumber;
+            let attempts;
+
+            const startGame = () => {
+                secretNumber = Math.floor(Math.random() * 100) + 1;
+                attempts = 0;
+                gameMessage.textContent = '';
+                guessInput.value = '';
+                gameContainer.classList.remove('hidden');
+            };
+
+            const closeGame = () => {
+                gameContainer.classList.add('hidden');
+            };
+
+            const handleGuess = () => {
+                const userGuess = parseInt(guessInput.value, 10);
+                if (isNaN(userGuess) || userGuess < 1 || userGuess > 100) {
+                    gameMessage.textContent = "Please enter a number between 1 and 100.";
+                    gameMessage.style.color = "#ff0000";
+                    return;
+                }
+
+                attempts++;
+                if (userGuess < secretNumber) {
+                    gameMessage.textContent = "Too low! Try again.";
+                    gameMessage.style.color = "#ffff00";
+                } else if (userGuess > secretNumber) {
+                    gameMessage.textContent = "Too high! Try again.";
+                     gameMessage.style.color = "#ffff00";
+                } else {
+                    gameMessage.textContent = `You got it in ${attempts} guesses! The number was ${secretNumber}.`;
+                    gameMessage.style.color = "#00ff00";
+                    setTimeout(startGame, 3000); // Restart game after 3 seconds
+                }
+            };
+
+            gameTrigger.addEventListener('click', startGame);
+            closeGameBtn.addEventListener('click', closeGame);
+            guessButton.addEventListener('click', handleGuess);
+            guessInput.addEventListener('keyup', (e) => {
+                 if (e.key === 'Enter') handleGuess();
+            });
+        });
+        
+    </script>
+
+</body>
+</html>
